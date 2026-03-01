@@ -41,6 +41,7 @@ _STRIP_RE = re.compile(
     re.DOTALL,
 )
 _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-]{2,}")
+_PHRASE_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-]{1,}")
 
 
 def _extract_words(text: str) -> List[str]:
@@ -52,13 +53,29 @@ def _extract_words(text: str) -> List[str]:
     ]
 
 
+def _extract_ngrams(text: str, n: int) -> List[str]:
+    """Extract n-grams where every constituent word is a non-stopword."""
+    cleaned = _STRIP_RE.sub(" ", text)
+    tokens = [tok.lower() for tok in _PHRASE_TOKEN_RE.findall(cleaned)]
+    phrases = []
+    for i in range(len(tokens) - n + 1):
+        gram = tokens[i : i + n]
+        if all(w not in _STOPWORDS and len(w) >= 2 for w in gram):
+            phrases.append(" ".join(gram))
+    return phrases
+
+
 def run_stage4_keywords(
     root_dir: Path,
     pdf_folder_name: str,
     out_root: Path,
     top_n: int = 50,
     min_count: int = 2,
+    top_n_phrases: int | None = None,
 ) -> None:
+    if top_n_phrases is None:
+        top_n_phrases = top_n
+
     pdf_dir = root_dir / pdf_folder_name
     if not pdf_dir.exists():
         raise FileNotFoundError(f"PDF folder not found: {pdf_dir}")
@@ -67,22 +84,34 @@ def run_stage4_keywords(
         [p for p in pdf_dir.iterdir() if p.is_dir() and p.name.startswith("page_")]
     )
 
-    counter: Counter = Counter()
+    word_counter: Counter = Counter()
+    phrase_counter: Counter = Counter()
     for page_dir in page_dirs:
         mmd_path = page_dir / "result.mmd"
         if not mmd_path.exists():
             continue
         raw = mmd_path.read_text(encoding="utf-8", errors="ignore")
         if raw.strip():
-            counter.update(_extract_words(raw))
+            word_counter.update(_extract_words(raw))
+            phrase_counter.update(_extract_ngrams(raw, 2))
+            phrase_counter.update(_extract_ngrams(raw, 3))
 
-    results: List[Dict[str, Any]] = [
-        {"keyword": word, "count": count}
-        for word, count in counter.most_common(top_n)
+    words: List[Dict[str, Any]] = [
+        {"keyword": word, "count": count, "type": "word"}
+        for word, count in word_counter.most_common(top_n)
         if count >= min_count
     ]
+    phrases: List[Dict[str, Any]] = [
+        {"keyword": phrase, "count": count, "type": "phrase"}
+        for phrase, count in phrase_counter.most_common(top_n_phrases)
+        if count >= min_count
+    ]
+    results = sorted(words + phrases, key=lambda x: x["count"], reverse=True)
 
     out_dir = out_root / pdf_folder_name
     out_dir.mkdir(parents=True, exist_ok=True)
     write_json(out_dir / "keywords.json", results)
-    print(f"keywords.json written ({len(results)} keywords) -> {out_dir / 'keywords.json'}")
+    print(
+        f"keywords.json written ({len(words)} words, {len(phrases)} phrases) "
+        f"-> {out_dir / 'keywords.json'}"
+    )

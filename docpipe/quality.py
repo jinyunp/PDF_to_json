@@ -125,3 +125,24 @@ def run_stage2_quality(root_dir: Path, pdf_folder_name: str, max_retry: int = 1,
             failed.append(page_dir.name)
 
     _append_unique(retry_failed_log, failed)
+
+
+def run_check_completed(root_dir: Path, pdf_folder_name: str) -> None:
+    pdf_dir = root_dir / pdf_folder_name
+    if not pdf_dir.exists():
+        raise FileNotFoundError(f"PDF folder not found: {pdf_dir}")
+
+    page_dirs = sorted([p for p in pdf_dir.iterdir() if p.is_dir() and p.name.startswith("page_")])
+    completed = [p.name for p in page_dirs if not _is_empty_mmd(p / "result.mmd")]
+    missing = [p.name for p in page_dirs if _is_empty_mmd(p / "result.mmd")]
+
+    logs_dir = pdf_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    completed_log = logs_dir / "completed_pages.txt"
+    completed_log.write_text("\n".join(completed) + ("\n" if completed else ""), encoding="utf-8")
+
+    total = len(page_dirs)
+    print(f"[{pdf_folder_name}] 완료: {len(completed)}/{total} 페이지")
+    print(f"저장됨: {completed_log}")
+    if missing:
+        print(f"미완료 페이지 ({len(missing)}개): {', '.join(missing)}")

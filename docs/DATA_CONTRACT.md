@@ -42,7 +42,31 @@
 `List[dict]`
 
 필드:
-- `keyword` — 소문자 단어
+- `keyword` — 소문자 단어 또는 구문 (공백으로 단어 구분)
 - `count` — 문서 내 등장 횟수
+- `type` — `"word"` (단일 단어) 또는 `"phrase"` (2-gram · 3-gram 구문)
 
-정렬: `count` 내림차순
+정렬: `count` 내림차순 (단어·구문 통합)
+
+예시:
+```json
+[
+  {"keyword": "blast furnace", "count": 312, "type": "phrase"},
+  {"keyword": "iron", "count": 289, "type": "word"},
+  {"keyword": "hot blast", "count": 201, "type": "phrase"},
+  {"keyword": "temperature", "count": 178, "type": "word"}
+]
+```
+
+## logs/completed_pages.txt
+
+`check` 명령 실행 시 `data/ocr/<pdf_name>/logs/completed_pages.txt`에 생성.
+
+형식: 비어 있지 않은 `result.mmd`가 존재하는 페이지 폴더명을 한 줄씩 기록.
+
+```
+page_0001
+page_0002
+page_0005
+...
+```

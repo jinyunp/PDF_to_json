@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from .ocr import run_stage1_ocr
-from .quality import run_stage2_quality
+from .quality import run_check_completed, run_stage2_quality
 from .structure import run_stage2_structure
 from .keywords import run_stage4_keywords
 
@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     ocr.add_argument("--end_page", type=int, default=None, help="1-based end page")
     ocr.add_argument("--dpi", type=int, default=200, help="Render DPI")
     ocr.add_argument("--device", default=None, help="Force cuda/cpu")
+    ocr.add_argument("--verbose", default=False, action="store_true", help="Show detailed output")
 
     # ── stage2: retry empty mmd ───────────────────────────────────────────────
     quality = subparsers.add_parser("stage2_quality", help="Retry OCR for empty result.mmd files")
@@ -40,7 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
     keywords.add_argument("--root_dir", default="data/ocr", help="OCR root directory")
     keywords.add_argument("--pdf", required=True, help="PDF folder name")
     keywords.add_argument("--out_root", default="data/json_output", help="JSON output root")
-    keywords.add_argument("--top_n", type=int, default=50, help="Number of top keywords")
+    keywords.add_argument("--top_n", type=int, default=50, help="Number of top single keywords")
+    keywords.add_argument("--top_n_phrases", type=int, default=None, help="Number of top phrases (default: same as top_n)")
     keywords.add_argument("--min_count", type=int, default=2, help="Minimum occurrence count")
 
     # ── aliases ───────────────────────────────────────────────────────────────
@@ -51,6 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     ocr_alias.add_argument("--end_page", type=int, default=None)
     ocr_alias.add_argument("--dpi", type=int, default=200)
     ocr_alias.add_argument("--device", default=None)
+    ocr_alias.add_argument("--verbose", action="store_true")
 
     retry_empty = subparsers.add_parser("retry-empty", help="alias of stage2_quality")
     retry_empty.add_argument("--root_dir", default="data/ocr")
@@ -68,7 +71,13 @@ def build_parser() -> argparse.ArgumentParser:
     keywords_alias.add_argument("--pdf", required=True)
     keywords_alias.add_argument("--out_root", default="data/json_output")
     keywords_alias.add_argument("--top_n", type=int, default=50)
+    keywords_alias.add_argument("--top_n_phrases", type=int, default=None)
     keywords_alias.add_argument("--min_count", type=int, default=2)
+
+    # ── check: list completed pages ───────────────────────────────────────────
+    check = subparsers.add_parser("check", help="List pages with completed OCR results")
+    check.add_argument("--root_dir", default="data/ocr", help="OCR root directory")
+    check.add_argument("--pdf", required=True, help="PDF folder name")
 
     return parser
 
@@ -85,6 +94,7 @@ def main() -> int:
             end_page=args.end_page,
             dpi=max(args.dpi, 72),
             device=args.device,
+            verbose=args.verbose,
         )
         return 0
 
@@ -112,6 +122,14 @@ def main() -> int:
             out_root=Path(args.out_root),
             top_n=args.top_n,
             min_count=args.min_count,
+            top_n_phrases=args.top_n_phrases,
+        )
+        return 0
+
+    if args.subcommand == "check":
+        run_check_completed(
+            root_dir=Path(args.root_dir),
+            pdf_folder_name=args.pdf,
         )
         return 0
 
