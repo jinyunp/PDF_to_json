@@ -1,0 +1,25 @@
+﻿# Keep folder structure only under data
+# Ignore all files under data
+/data/**
+# Re-include only required placeholder folders
+!/data/
+!/data/images/
+!/data/pdf/
+!/data/images/.gitkeep
+!/data/pdf/.gitkeep
+
+# Build/output
+/out/**
+/data/output/**
+
+# Python env/cache
+.venv/
+__pycache__/
+
+# Models and local files
+/models/**
+!/models/.gitkeep
+replacements.txt
+
+# local files
+WORKLOG.md

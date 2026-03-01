@@ -1,0 +1,2 @@
+"""docpipe CLI package."""
+

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USER/.claude/projects/c--Users-USER-Desktop-JYP-projects-03-scaleuptips-WP-to-json/memory/**)"
+    ]
+  }
+}
