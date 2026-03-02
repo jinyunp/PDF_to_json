@@ -22,7 +22,7 @@
 ## 프로젝트 개요
 
 - 프로젝트명: `PDF_to_json`
-- 파이프라인: OCR → retry-empty → structure → keywords
+- 파이프라인: OCR → retry-empty (→ completed_pages.txt 자동 갱신) → structure → keywords
 - 번역 단계 없음
 
 ## 사용 예시

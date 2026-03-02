@@ -5,10 +5,10 @@
 | # | 단계명 | 함수 | 설명 |
 |---|--------|------|------|
 | 1 | `stage1_ocr` | `run_stage1_ocr` | PDF → 페이지별 PNG → DeepSeek OCR → `result.mmd` |
-| 2 | `stage2_quality` | `run_stage2_quality` | 빈 `result.mmd` 탐지 및 재OCR |
+| 2 | `stage2_quality` | `run_stage2_quality` | 빈 `result.mmd` 탐지 및 재OCR + `completed_pages.txt` 자동 갱신 |
 | 3 | `stage3_structure` | `run_stage2_structure` | `result.mmd` 파싱 → 구조화 JSON 생성 |
 | 4 | `stage4_keywords` | `run_stage4_keywords` | mmd 전체 텍스트에서 빈도 기반 단어·구문 추출 |
-| - | `check` | `run_check_completed` | OCR 완료 페이지 목록 확인 및 로그 저장 |
+| - | `check` | `run_check_completed` | OCR 완료 페이지 목록 확인 및 로그 저장 (단독 실행 가능) |
 
 ## OCR 진행 출력 제어 (stage1_ocr)
 
@@ -35,12 +35,13 @@
 PDF → [stage1_ocr] → result.mmd
               ↓
      [stage2_quality] → 빈 페이지 재OCR
+                      → completed_pages.txt (자동 갱신)
               ↓
      [stage3_structure] → texts/tables/images JSON
               ↓
      [stage4_keywords] → keywords.json (단어 + 구문)
 
-[check] → completed_pages.txt  (언제든 독립 실행 가능)
+[check] → completed_pages.txt  (언제든 단독 실행 가능)
 ```
 
 ## 폴더 구조
@@ -84,7 +85,7 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
    │     └─ logs/
    │        ├─ empty_pages_quality.txt
    │        ├─ empty_pages_retry_failed.txt
-   │        └─ completed_pages.txt       # check 명령으로 생성
+   │        └─ completed_pages.txt       # retry-empty 자동 갱신 / check 단독 실행 가능
    └─ json_output/              # 구조화 JSON 출력
       └─ <pdf_name>/
          ├─ texts_final.json

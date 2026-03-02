@@ -125,6 +125,7 @@ def run_stage2_quality(root_dir: Path, pdf_folder_name: str, max_retry: int = 1,
             failed.append(page_dir.name)
 
     _append_unique(retry_failed_log, failed)
+    run_check_completed(root_dir=root_dir, pdf_folder_name=pdf_folder_name)
 
 
 def run_check_completed(root_dir: Path, pdf_folder_name: str) -> None:
