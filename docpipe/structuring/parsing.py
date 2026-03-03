@@ -10,7 +10,9 @@ from .types import FigureItem, TableItem
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)\s*$")
 NUMBERED_PREFIX_RE = re.compile(r"^\s*(\d+(?:\.\d+)*)\s*(?:[)\].:-]\s*)?(.*)$")
 FIG_CAPTION_RE = re.compile(
-    r"^\s*(?:fig(?:ure)?\.?)\s*([0-9]+(?:\.[0-9]+)?)\s*[:.\-]?\s*(.*)$",
+    r"^\s*(?:fig(?:ure)?\.?)\s*"
+    r"([0-9]+(?:\.[0-9]+)?(?:\s*:\s*[0-9]+)?|[IVXLCDM]+(?:\s*:\s*[0-9]+)?)"
+    r"\s*[:.\-]?\s*(.*)$",
     re.IGNORECASE,
 )
 TABLE_CAPTION_RE = re.compile(r"^\s*table\s*([0-9]+(?:\.[0-9]+)?)\s*[:.\-]?\s*(.*)$", re.IGNORECASE)

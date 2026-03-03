@@ -3,9 +3,7 @@
 /data/**
 # Re-include only required placeholder folders
 !/data/
-!/data/images/
 !/data/pdf/
-!/data/images/.gitkeep
 !/data/pdf/.gitkeep
 
 # Build/output

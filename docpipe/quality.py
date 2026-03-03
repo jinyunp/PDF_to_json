@@ -9,10 +9,21 @@ DEEPSEEK_MODEL_ID = os.environ.get("DEEPSEEK_MODEL_ID", "/workspace/models/DeepS
 
 
 PROMPT = (
-    "<image>\n<|grounding|>Convert the document to markdown. "
-    "The layout of the document may show both sides in one image or just one page in a image. "
-    "If the image shows two sides, please separate the content of the left and right sides into two sections "
-    "in the markdown output.\n<|end|>\n"
+    f"""<image>\n<|grounding|>Convert the document to markdown.
+    The layout of the document may show both sides in one image or just one page in a image.
+    If the image shows two sides, please separate the content of the left and right sides into two sections in the markdown output.
+    
+    Guidelines:
+    * Math: express formulas as plain strings such as "CO2 40%" or "Si2 = 0.5", use A/B for fractions, and avoid LaTeX commands like \\frac, _ or ^.
+    * Tables: Use colspan and rowspan attributes to match table structure.
+    * Formatting: Maintain consistent formatting with the image, including spacing, indentation, subscripts/superscripts, and special characters.
+    * Images/Diagrams: summarize complex diagrams or arrow flows in a short sentence and rely on the cropped image instead of reproducing every shape.
+    * Forms: Mark checkboxes and radio buttons properly.
+    * Text: join lines together properly into paragraphs using <p>...</p> tags. Use <br> only when absolutely necessary.
+    * Use the simplest possible HTML structure that accurately represents the content of the block.
+    * Make sure the text is accurate and easy for a human to read and interpret. Reading order should be correct and natural.
+    \n<|end|>\n
+    """
 )
 
 
