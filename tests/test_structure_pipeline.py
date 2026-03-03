@@ -8,7 +8,7 @@ from pathlib import Path
 from docpipe.structure import run_stage2_structure
 
 
-class Stage2StructurePipelineTest(unittest.TestCase):
+class StructurePipelineTest(unittest.TestCase):
     def test_structure_generates_json_and_logs_empty_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

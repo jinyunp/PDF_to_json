@@ -11,6 +11,7 @@
 # Build/output
 /out/**
 /data/output/**
+/data/logs/**
 
 # Python env/cache
 .venv/

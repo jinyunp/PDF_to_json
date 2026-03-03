@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from docpipe.stage2_structure import (
+from docpipe.structuring import (
     build_images_sum_final,
     build_tables_str_final,
     chunk_text_blocks,

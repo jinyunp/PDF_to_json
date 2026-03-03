@@ -7,7 +7,7 @@
 | 1 | `stage1_ocr` | `run_stage1_ocr` | PDF → 페이지별 PNG → DeepSeek OCR → `result.mmd` |
 | 2 | `stage2_quality` | `run_stage2_quality` | 빈 `result.mmd` 탐지 및 재OCR + `completed_pages.txt` 자동 갱신 |
 | 3 | `stage3_structure` | `run_stage2_structure` | `result.mmd` 파싱 → 구조화 JSON 생성 |
-| 4 | `stage4_keywords` | `run_stage4_keywords` | mmd 전체 텍스트에서 빈도 기반 단어·구문 추출 |
+| 4 | `stage4_keywords` | `run_stage4_keywords` | `texts_final.json` 기반 chunk별 TF-IDF 키워드 추출 → `texts_final.json` 업데이트 + `keywords.json` 생성 |
 | - | `check` | `run_check_completed` | OCR 완료 페이지 목록 확인 및 로그 저장 (단독 실행 가능) |
 
 ## OCR 진행 출력 제어 (stage1_ocr)
@@ -24,9 +24,21 @@
 
 ## 키워드·구문 추출 전략 (stage4_keywords)
 
+입력 소스: `data/json_output/<pdf_name>/texts_final.json`
+
+**추출 기준:**
 - **단어(word)**: `[A-Za-z][A-Za-z0-9\-]{2,}` 패턴 + 불용어 제거, 소문자 정규화
 - **구문(phrase)**: 연속된 2-gram·3-gram 중 구성 단어가 모두 불용어가 아닌 것만 포함
-- 결과는 등장 횟수 내림차순으로 정렬, `type: "word" | "phrase"` 필드로 구분
+- `[doc:][path:][page:]` 메타데이터 prefix 줄은 추출 전 자동 제거
+
+**스코어링 방식:**
+- chunk별 keywords: TF-IDF (`TF(chunk) × IDF(전체 chunk 기준)`)
+- 전역 keywords.json: `count × IDF` — 자주 등장하고 의미상 특색 있는 용어 우선
+- 구문(phrase)은 단어 대비 1.5× 가중치 (의미 단위로 더 높은 중요도)
+
+**출력:**
+- `texts_final.json` — 각 chunk에 `keywords: [{keyword, score}]` 필드 in-place 추가
+- `keywords.json` — 전체 문서 통합, `score` 내림차순 정렬, `type: "word" | "phrase"` 필드 포함
 - `top_n`(단어 수)과 `top_n_phrases`(구문 수)를 독립적으로 제어 가능
 
 ## 시퀀스 흐름
@@ -39,7 +51,8 @@ PDF → [stage1_ocr] → result.mmd
               ↓
      [stage3_structure] → texts/tables/images JSON
               ↓
-     [stage4_keywords] → keywords.json (단어 + 구문)
+     [stage4_keywords] → texts_final.json 업데이트 (chunk별 keywords 필드 추가)
+                      → keywords.json (전체 통합 단어 + 구문)
 
 [check] → completed_pages.txt  (언제든 단독 실행 가능)
 ```
@@ -64,8 +77,8 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
 │  ├─ ocr.py            # stage1 (verbose/quiet_mode 포함)
 │  ├─ quality.py        # stage2 (DeepSeekOCR2Runner, run_check_completed 포함)
 │  ├─ structure.py      # stage3 wrapper
-│  ├─ keywords.py       # stage4 (단어 + 2/3-gram 구문 추출)
-│  └─ stage2_structure/ # 구조화 내부 구현
+│  ├─ keywords.py       # stage4 (texts_final.json 기반 TF-IDF 키워드 추출)
+│  └─ structuring/      # 구조화 내부 구현
 │     ├─ __init__.py
 │     ├─ parsing.py     # mmd 파싱 (헤딩/Figure/Table)
 │     ├─ chunking.py    # 텍스트 청킹 + 참조 탐지
@@ -74,7 +87,7 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
 │     ├─ pipeline.py    # stage3 파이프라인
 │     └─ types.py       # FigureItem, TableItem
 ├─ tests/
-│  └─ test_stage2_structure_pipeline.py
+│  └─ test_structure_pipeline.py
 └─ data/
    ├─ pdf/                      # 원본 PDF 입력
    ├─ ocr/                      # OCR 출력 (root_dir)
