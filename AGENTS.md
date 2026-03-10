@@ -22,13 +22,16 @@
 ## 프로젝트 개요
 
 - 프로젝트명: `PDF_to_json`
-- 파이프라인: OCR → retry-empty (→ completed_pages.txt 자동 갱신) → structure → keywords
+- 파이프라인: pptx2pdf (선택) → OCR → retry-empty (→ completed_pages.txt 자동 갱신) → structure → keywords
 - 번역 단계 없음
 
 ## 사용 예시
 
 ```bash
 PDF="sample_book"
+
+# PPTX → born-digital PDF (Windows 전용, PowerPoint 필요)
+python -m docpipe pptx2pdf --raw_dir data/raw --pdf_dir data/pdf
 
 python -m docpipe ocr --pdf_input data/pdf --out_root data/ocr
 python -m docpipe retry-empty --root_dir data/ocr --pdf "$PDF"

@@ -4,6 +4,7 @@
 
 | # | 단계명 | 함수 | 설명 |
 |---|--------|------|------|
+| 0 | `pptx2pdf` | `run_pptx_to_pdf` | `.pptx` → born-digital PDF, Windows PowerPoint COM 자동화 |
 | 1 | `stage1_ocr` | `run_stage1_ocr` | PDF → 페이지별 PNG → DeepSeek OCR → `result.mmd` |
 | 2 | `stage2_quality` | `run_stage2_quality` | 빈 `result.mmd` 탐지 및 재OCR + `completed_pages.txt` 자동 갱신 |
 | 3 | `stage3_structure` | `run_stage2_structure` | `result.mmd` 파싱 → 구조화 JSON 생성 |
@@ -44,6 +45,8 @@
 ## 시퀀스 흐름
 
 ```
+PPTX → [pptx2pdf] → data/pdf/*.pdf  (Windows 전용, born-digital)
+              ↓
 PDF → [stage1_ocr] → result.mmd
               ↓
      [stage2_quality] → 빈 페이지 재OCR
@@ -78,6 +81,9 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
 │  ├─ quality.py        # stage2 (DeepSeekOCR2Runner, run_check_completed 포함)
 │  ├─ structure.py      # stage3 wrapper
 │  ├─ keywords.py       # stage4 (texts_final.json 기반 TF-IDF 키워드 추출)
+│  ├─ ppt_to_json/      # pptx2pdf: PPTX → born-digital PDF (Windows 전용)
+│  │  ├─ __init__.py
+│  │  └─ convert.py     # PowerPoint COM 자동화 변환
 │  └─ structuring/      # 구조화 내부 구현
 │     ├─ __init__.py
 │     ├─ parsing.py     # mmd 파싱 (헤딩/Figure/Table)
@@ -89,7 +95,8 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
 ├─ tests/
 │  └─ test_structure_pipeline.py
 └─ data/
-   ├─ pdf/                      # 원본 PDF 입력
+   ├─ raw/                      # 원본 PPTX 입력 (pptx2pdf 입력)
+   ├─ pdf/                      # PDF 입력 (pptx2pdf 출력 / 직접 배치)
    ├─ ocr/                      # OCR 출력 (root_dir)
    │  └─ <pdf_name>/
    │     ├─ page_0001.png

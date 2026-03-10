@@ -7,6 +7,7 @@ from .ocr import run_stage1_ocr
 from .quality import run_check_completed, run_stage2_quality
 from .structure import run_stage2_structure
 from .keywords import run_stage4_keywords
+from .ppt_to_json import run_pptx_to_pdf
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -79,6 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--root_dir", default="data/ocr", help="OCR root directory")
     check.add_argument("--pdf", required=True, help="PDF folder name")
 
+    # ── pptx2pdf: PPTX → born-digital PDF (Windows only) ─────────────────────
+    p2p = subparsers.add_parser("pptx2pdf", help="Convert .pptx files to born-digital PDF via PowerPoint COM (Windows only)")
+    p2p.add_argument("--raw_dir", default="data/raw", help="Directory containing .pptx files (기본: data/raw)")
+    p2p.add_argument("--pdf_dir", default="data/pdf", help="Output directory for PDF files (기본: data/pdf)")
+    p2p.add_argument("--overwrite", action="store_true", help="Overwrite existing PDF files")
+
     return parser
 
 
@@ -130,6 +137,14 @@ def main() -> int:
         run_check_completed(
             root_dir=Path(args.root_dir),
             pdf_folder_name=args.pdf,
+        )
+        return 0
+
+    if args.subcommand == "pptx2pdf":
+        run_pptx_to_pdf(
+            raw_dir=Path(args.raw_dir),
+            pdf_dir=Path(args.pdf_dir),
+            overwrite=args.overwrite,
         )
         return 0
 
