@@ -7,7 +7,7 @@ from .ocr import run_stage1_ocr
 from .quality import run_check_completed, run_stage2_quality
 from .structure import run_stage2_structure
 from .keywords import run_stage4_keywords
-from .ppt_to_json import run_pptx_to_pdf
+from .ppt_to_pdf import run_pptx_to_pdf, run_pdf_extract
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -86,6 +86,13 @@ def build_parser() -> argparse.ArgumentParser:
     p2p.add_argument("--pdf_dir", default="data/pdf", help="Output directory for PDF files (기본: data/pdf)")
     p2p.add_argument("--overwrite", action="store_true", help="Overwrite existing PDF files")
 
+    # ── pdf-extract: born-digital PDF → JSON (pypdfium2) ─────────────────────
+    pex = subparsers.add_parser("pdf-extract", help="Extract text/metadata from PDF(s) into JSON using pypdfium2")
+    pex_src = pex.add_mutually_exclusive_group(required=True)
+    pex_src.add_argument("--pdf_dir", help="Directory of .pdf files to process (e.g. data/pdf)")
+    pex_src.add_argument("--pdf_file", help="Single .pdf file to process")
+    pex.add_argument("--out_root", default="data/json_output", help="JSON output root (기본: data/json_output)")
+
     return parser
 
 
@@ -145,6 +152,14 @@ def main() -> int:
             raw_dir=Path(args.raw_dir),
             pdf_dir=Path(args.pdf_dir),
             overwrite=args.overwrite,
+        )
+        return 0
+
+    if args.subcommand == "pdf-extract":
+        run_pdf_extract(
+            pdf_dir=Path(args.pdf_dir) if args.pdf_dir else None,
+            pdf_file=Path(args.pdf_file) if args.pdf_file else None,
+            out_root=Path(args.out_root),
         )
         return 0
 
