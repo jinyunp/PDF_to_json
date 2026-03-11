@@ -7,7 +7,7 @@ from .ocr import run_stage1_ocr
 from .quality import run_check_completed, run_stage2_quality
 from .structure import run_stage2_structure
 from .keywords import run_stage4_keywords
-from .ppt_to_pdf import run_pptx_to_pdf, run_pdf_extract
+from .ppt_to_pdf import run_pptx_to_pdf, run_pdf_extract, run_viz
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -93,6 +93,17 @@ def build_parser() -> argparse.ArgumentParser:
     pex_src.add_argument("--pdf_file", help="Single .pdf file to process")
     pex.add_argument("--out_root", default="data/json_output", help="JSON output root (기본: data/json_output)")
 
+    # ── pdf-viz: bbox 시각화 ──────────────────────────────────────────────────
+    viz = subparsers.add_parser("pdf-viz", help="Render PDF pages with bbox overlays (text_blocks / images / table_candidates)")
+    viz.add_argument("--pdf_file", required=True, help="Source PDF file (e.g. data/pdf/foo.pdf)")
+    viz.add_argument("--json_file", required=True, help="pdf_extracted.json from pdf-extract (e.g. data/json_output/foo/pdf_extracted.json)")
+    viz.add_argument("--out_dir", default=None, help="Output directory for PNG files (기본: json_file 디렉토리/viz)")
+    viz.add_argument("--pages", nargs="*", type=int, default=None, metavar="N", help="1-based page numbers to render (기본: 전체)")
+    viz.add_argument("--dpi", type=int, default=150, help="Render DPI (기본: 150)")
+    viz.add_argument("--no_text", action="store_true", help="Skip text block bboxes")
+    viz.add_argument("--no_image", action="store_true", help="Skip image bboxes")
+    viz.add_argument("--no_table", action="store_true", help="Skip table candidate bboxes")
+
     return parser
 
 
@@ -160,6 +171,22 @@ def main() -> int:
             pdf_dir=Path(args.pdf_dir) if args.pdf_dir else None,
             pdf_file=Path(args.pdf_file) if args.pdf_file else None,
             out_root=Path(args.out_root),
+        )
+        return 0
+
+    if args.subcommand == "pdf-viz":
+        json_path = Path(args.json_file)
+        out_dir = Path(args.out_dir) if args.out_dir else json_path.parent / "viz"
+        print(f"[pdf-viz] {Path(args.pdf_file).name} -> {out_dir}")
+        run_viz(
+            pdf_path=Path(args.pdf_file),
+            json_path=json_path,
+            out_dir=out_dir,
+            pages=args.pages or None,
+            dpi=args.dpi,
+            draw_text_blocks=not args.no_text,
+            draw_images=not args.no_image,
+            draw_tables=not args.no_table,
         )
         return 0
 
