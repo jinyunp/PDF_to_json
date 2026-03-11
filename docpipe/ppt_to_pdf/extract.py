@@ -231,18 +231,136 @@ def _union_bbox(lines: List[Tuple]) -> Tuple[float, float, float, float]:
     return x0, y0, x1, y1
 
 
-def _detect_tables(h_lines: List[Tuple], v_lines: List[Tuple]) -> List[Dict[str, Any]]:
+def _cluster_positions(positions: List[float], gap: float) -> List[float]:
+    """
+    Merge positions that are within *gap* of each other into a single centroid.
+    Returns sorted unique representative positions.
+    """
+    if not positions:
+        return []
+    sorted_pos = sorted(positions)
+    clusters: List[List[float]] = [[sorted_pos[0]]]
+    for p in sorted_pos[1:]:
+        if p - clusters[-1][-1] <= gap:
+            clusters[-1].append(p)
+        else:
+            clusters.append([p])
+    return [sum(c) / len(c) for c in clusters]
+
+
+def _extract_cells(
+    tbl_bbox: Tuple[float, float, float, float],
+    h_lines: List[Tuple],
+    v_lines: List[Tuple],
+    text_blocks: List[Dict[str, Any]],
+) -> Tuple[int, int, List[Dict[str, Any]]]:
+    """
+    Reconstruct the cell grid for one table candidate.
+
+    Algorithm:
+    1. Filter H/V lines whose center falls inside the table bbox (with margin).
+    2. Cluster their center coordinates to get row/col dividers.
+    3. Add the table outer edges as boundary dividers if not already present.
+    4. Build cell bboxes from adjacent divider pairs.
+    5. Assign text_blocks to cells by center-point containment.
+
+    Returns (row_count, col_count, cells).
+    """
+    _MARGIN = _CLUSTER_GAP_PT
+    tx0, ty0, tx1, ty1 = tbl_bbox
+
+    # ── 1. filter lines whose center is inside the table bbox ────────────
+    def in_tbl(line):
+        cx = (line[0] + line[2]) / 2
+        cy = (line[1] + line[3]) / 2
+        return (tx0 - _MARGIN <= cx <= tx1 + _MARGIN
+                and ty0 - _MARGIN <= cy <= ty1 + _MARGIN)
+
+    h_in = [l for l in h_lines if in_tbl(l)]
+    v_in = [l for l in v_lines if in_tbl(l)]
+
+    # ── 2. cluster center positions ───────────────────────────────────────
+    h_centers = [(l[1] + l[3]) / 2 for l in h_in]  # y-centers of H-lines
+    v_centers = [(l[0] + l[2]) / 2 for l in v_in]  # x-centers of V-lines
+
+    row_divs = _cluster_positions(h_centers, gap=_CLUSTER_GAP_PT)
+    col_divs = _cluster_positions(v_centers, gap=_CLUSTER_GAP_PT)
+
+    # ── 3. ensure outer edges are present ─────────────────────────────────
+    def _insert_if_far(lst, val):
+        if not lst or abs(lst[0] - val) > _CLUSTER_GAP_PT:
+            lst.insert(0, val)
+        if not lst or abs(lst[-1] - val) > _CLUSTER_GAP_PT:
+            lst.append(val)
+
+    _insert_if_far(row_divs, ty0)
+    _insert_if_far(row_divs, ty1)
+    _insert_if_far(col_divs, tx0)
+    _insert_if_far(col_divs, tx1)
+
+    row_divs.sort()
+    col_divs.sort()
+
+    n_rows = len(row_divs) - 1
+    n_cols = len(col_divs) - 1
+
+    if n_rows <= 0 or n_cols <= 0:
+        return 0, 0, []
+
+    # ── 4. build cell bboxes ──────────────────────────────────────────────
+    # PDF y increases upward: row_divs sorted low→high = bottom→top
+    # We label rows 0..n_rows-1 from top (highest y) to bottom (lowest y)
+    cells: List[Dict[str, Any]] = []
+    for ri in range(n_rows):
+        # row ri: y between row_divs[n_rows-1-ri] (top) and row_divs[n_rows-ri] (bottom)
+        # But simpler: just use index order; viz can handle it
+        cell_y0 = row_divs[ri]
+        cell_y1 = row_divs[ri + 1]
+        for ci in range(n_cols):
+            cell_x0 = col_divs[ci]
+            cell_x1 = col_divs[ci + 1]
+            cell_bbox = _bbox_dict(cell_x0, cell_y0, cell_x1, cell_y1)
+
+            # ── 5. assign text_blocks to this cell ────────────────────────
+            cell_texts: List[str] = []
+            for blk in text_blocks:
+                bx = (blk["bbox"]["x0"] + blk["bbox"]["x1"]) / 2
+                by = (blk["bbox"]["y0"] + blk["bbox"]["y1"]) / 2
+                if (cell_x0 - 1 <= bx <= cell_x1 + 1
+                        and cell_y0 - 1 <= by <= cell_y1 + 1):
+                    cell_texts.append(blk["text"])
+
+            cells.append({
+                "row": ri,
+                "col": ci,
+                "bbox": cell_bbox,
+                "width_pt":  _r(cell_x1 - cell_x0),
+                "height_pt": _r(cell_y1 - cell_y0),
+                "text": " ".join(cell_texts).strip(),
+            })
+
+    return n_rows, n_cols, cells
+
+
+def _detect_tables(
+    h_lines: List[Tuple],
+    v_lines: List[Tuple],
+    text_blocks: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
     Cluster H-lines and V-lines into groups whose bboxes overlap.
     A cluster with >= _TABLE_MIN_H horizontal AND >= _TABLE_MIN_V vertical
     lines is flagged as a table candidate.
+    Each table candidate now includes row_count, col_count, and cells[].
     """
+    from collections import defaultdict
+
     if not h_lines or not v_lines:
         return []
 
     all_lines = [("h", l) for l in h_lines] + [("v", l) for l in v_lines]
 
-    # Union-Find style grouping
+    # Union-Find grouping
     n = len(all_lines)
     parent = list(range(n))
 
@@ -262,8 +380,6 @@ def _detect_tables(h_lines: List[Tuple], v_lines: List[Tuple]) -> List[Dict[str,
             if _bbox_overlaps(all_lines[i][1], all_lines[j][1], _CLUSTER_GAP_PT):
                 union(i, j)
 
-    # Collect clusters
-    from collections import defaultdict
     clusters: Dict[int, List] = defaultdict(list)
     for i, (kind, line) in enumerate(all_lines):
         clusters[find(i)].append((kind, line))
@@ -275,10 +391,18 @@ def _detect_tables(h_lines: List[Tuple], v_lines: List[Tuple]) -> List[Dict[str,
         if len(hs) >= _TABLE_MIN_H and len(vs) >= _TABLE_MIN_V:
             all_seg = hs + vs
             ux0, uy0, ux1, uy1 = _union_bbox(all_seg)
+            tbl_bbox = (ux0, uy0, ux1, uy1)
+
+            n_rows, n_cols, cells = _extract_cells(
+                tbl_bbox, h_lines, v_lines, text_blocks
+            )
             tables.append({
-                "bbox": _bbox_dict(ux0, uy0, ux1, uy1),
+                "bbox":        _bbox_dict(ux0, uy0, ux1, uy1),
                 "h_line_count": len(hs),
                 "v_line_count": len(vs),
+                "row_count":   n_rows,
+                "col_count":   n_cols,
+                "cells":       cells,
             })
 
     return tables
@@ -313,7 +437,7 @@ def _extract_page(page: pypdfium2.PdfPage, page_no: int) -> Dict[str, Any]:
 
     # ── table candidates ──────────────────────────────────────────────────
     h_lines, v_lines = _classify_lines(page)
-    table_candidates = _detect_tables(h_lines, v_lines)
+    table_candidates = _detect_tables(h_lines, v_lines, text_blocks)
 
     return {
         "page_no": page_no,

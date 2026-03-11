@@ -7,7 +7,7 @@ from .ocr import run_stage1_ocr
 from .quality import run_check_completed, run_stage2_quality
 from .structure import run_stage2_structure
 from .keywords import run_stage4_keywords
-from .ppt_to_pdf import run_pptx_to_pdf, run_pdf_extract, run_viz
+from .ppt_to_pdf import run_pptx_to_pdf, run_pdf_extract, run_viz, run_table_headers
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -93,6 +93,12 @@ def build_parser() -> argparse.ArgumentParser:
     pex_src.add_argument("--pdf_file", help="Single .pdf file to process")
     pex.add_argument("--out_root", default="data/json_output", help="JSON output root (기본: data/json_output)")
 
+    # ── table-headers: 표 헤더 추출 → CSV ────────────────────────────────────
+    th = subparsers.add_parser("table-headers", help="Extract first-content row of every table in PDFs → CSV")
+    th.add_argument("--pdf_dir", required=True, help="Directory containing PDF files (recursively searched)")
+    th.add_argument("--json_root", default="data/json_output", help="Root for pdf_extracted.json files (기본: data/json_output)")
+    th.add_argument("--out", default=None, help="Output CSV path (기본: <json_root>/table_headers.csv)")
+
     # ── pdf-viz: bbox 시각화 ──────────────────────────────────────────────────
     viz = subparsers.add_parser("pdf-viz", help="Render PDF pages with bbox overlays (text_blocks / images / table_candidates)")
     viz.add_argument("--pdf_file", required=True, help="Source PDF file (e.g. data/pdf/foo.pdf)")
@@ -103,6 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     viz.add_argument("--no_text", action="store_true", help="Skip text block bboxes")
     viz.add_argument("--no_image", action="store_true", help="Skip image bboxes")
     viz.add_argument("--no_table", action="store_true", help="Skip table candidate bboxes")
+    viz.add_argument("--no_cell", action="store_true", help="Skip individual cell bboxes")
 
     return parser
 
@@ -174,6 +181,16 @@ def main() -> int:
         )
         return 0
 
+    if args.subcommand == "table-headers":
+        json_root = Path(args.json_root)
+        out_path = Path(args.out) if args.out else json_root / "table_headers.csv"
+        run_table_headers(
+            pdf_dir=Path(args.pdf_dir),
+            json_root=json_root,
+            out_path=out_path,
+        )
+        return 0
+
     if args.subcommand == "pdf-viz":
         json_path = Path(args.json_file)
         out_dir = Path(args.out_dir) if args.out_dir else json_path.parent / "viz"
@@ -187,6 +204,7 @@ def main() -> int:
             draw_text_blocks=not args.no_text,
             draw_images=not args.no_image,
             draw_tables=not args.no_table,
+            draw_cells=not args.no_cell,
         )
         return 0
 

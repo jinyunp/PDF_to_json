@@ -17,6 +17,7 @@ _COLORS: Dict[str, Tuple[int, int, int, int]] = {
     "text_in_table":      (255, 150,   0, 255),  # orange — text block inside a table
     "image":              ( 30, 130, 255, 255),  # blue  — image
     "table_candidate":    ( 30, 180,  60, 255),  # green — table candidate boundary
+    "cell":               (160,   0, 220, 255),  # purple — individual table cell
 }
 _FILL_ALPHA   = 30   # semi-transparent fill (0-255)
 _TEXT_WIDTH   = 1    # outline width for text blocks (px)
@@ -78,6 +79,7 @@ def render_page_with_bboxes(
     draw_text_blocks: bool = True,
     draw_images: bool = True,
     draw_tables: bool = True,
+    draw_cells: bool = True,
 ) -> Image.Image:
     """
     Render one PDF page and overlay bbox annotations:
@@ -117,11 +119,13 @@ def render_page_with_bboxes(
             _draw_rect(draw, to_px(tbl["bbox"]),
                        _COLORS["table_candidate"], _OBJ_WIDTH)
 
-    # ── layer 2: images ────────────────────────────────────────────────────
-    if draw_images:
-        for img_obj in page_data.get("images", []):
-            _draw_rect(draw, to_px(img_obj["bbox"]),
-                       _COLORS["image"], _OBJ_WIDTH)
+    # ── layer 2: individual table cells ───────────────────────────────────
+    if draw_cells:
+        for tbl in table_bboxes:
+            for cell in tbl.get("cells", []):
+                if cell["width_pt"] > 3.0 and cell["height_pt"] > 3.0:
+                    _draw_rect(draw, to_px(cell["bbox"]),
+                               _COLORS["cell"], _TEXT_WIDTH)
 
     # ── layer 3: text blocks — split into inside-table / outside-table ────
     if draw_text_blocks:
@@ -131,6 +135,12 @@ def render_page_with_bboxes(
             color_key = "text_in_table" if in_table else "text_block"
             _draw_rect(draw, to_px(blk["bbox"]),
                        _COLORS[color_key], _TEXT_WIDTH)
+
+    # ── layer 4: images (top layer — always visible) ───────────────────────
+    if draw_images:
+        for img_obj in page_data.get("images", []):
+            _draw_rect(draw, to_px(img_obj["bbox"]),
+                       _COLORS["image"], _OBJ_WIDTH)
 
     annotated = Image.alpha_composite(pil_img, overlay).convert("RGB")
     return annotated
@@ -147,6 +157,7 @@ def run_viz(
     draw_text_blocks: bool = True,
     draw_images: bool = True,
     draw_tables: bool = True,
+    draw_cells: bool = True,
 ) -> None:
     """
     Render annotated page images and save them to out_dir as PNG files.
@@ -156,6 +167,7 @@ def run_viz(
         orange = text_block (inside table_candidate)
         blue   = image
         green  = table_candidate boundary
+        purple = individual table cell
     """
     data = json.loads(json_path.read_text(encoding="utf-8"))
     all_pages = data["pages"]
@@ -167,7 +179,7 @@ def run_viz(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print("  legend: red=text_block  orange=text_in_table  "
-          "blue=image  green=table_candidate")
+          "blue=image  green=table_candidate  purple=cell")
 
     for page_data in target_pages:
         pno = page_data["page_no"]
@@ -196,6 +208,7 @@ def run_viz(
             draw_text_blocks=draw_text_blocks,
             draw_images=draw_images,
             draw_tables=draw_tables,
+            draw_cells=draw_cells,
         )
         out_path = out_dir / f"page_{pno:04d}.png"
         img.save(out_path, "PNG")
