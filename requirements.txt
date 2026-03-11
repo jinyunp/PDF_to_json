@@ -1,0 +1,4 @@
+# Core pipeline dependencies
+pypdfium2
+python-pptx
+scikit-learn

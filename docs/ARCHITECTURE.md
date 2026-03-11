@@ -4,7 +4,7 @@
 
 | # | 단계명 | 함수 | 설명 |
 |---|--------|------|------|
-| 0a | `pptx2pdf` | `run_pptx_to_pdf` | `.pptx` → born-digital PDF, Windows PowerPoint COM 자동화 |
+| 0a | `pptx2pdf` | `run_pptx_to_pdf` | `.pptx` → born-digital PDF, python-pptx 검증 + LibreOffice headless 변환 (크로스플랫폼) |
 | 0b | `pdf-extract` | `run_pdf_extract` | born-digital PDF → `pdf_extracted.json` (pypdfium2: 메타데이터 + 페이지별 텍스트·이미지수) |
 | 1 | `stage1_ocr` | `run_stage1_ocr` | PDF → 페이지별 PNG → DeepSeek OCR → `result.mmd` |
 | 2 | `stage2_quality` | `run_stage2_quality` | 빈 `result.mmd` 탐지 및 재OCR + `completed_pages.txt` 자동 갱신 |
@@ -46,7 +46,7 @@
 ## 시퀀스 흐름
 
 ```
-PPTX → [pptx2pdf] → data/pdf/*.pdf  (Windows 전용, born-digital)
+PPTX → [pptx2pdf] → data/pdf/*.pdf  (python-pptx + LibreOffice headless, 크로스플랫폼)
               ↓
        [pdf-extract] → data/json_output/<stem>/pdf_extracted.json
               ↓ (born-digital이 아닌 PDF는 OCR 경로)
@@ -86,7 +86,7 @@ PDF_to_json/           (저장소 루트, 물리적 폴더명: WP_to_json)
 │  ├─ keywords.py       # stage4 (texts_final.json 기반 TF-IDF 키워드 추출)
 │  ├─ ppt_to_pdf/       # PPTX/PDF 전처리 모듈 (Windows 전용)
 │  │  ├─ __init__.py
-│  │  ├─ convert.py     # pptx2pdf: PowerPoint COM 자동화 변환
+│  │  ├─ convert.py     # pptx2pdf: python-pptx 검증 + LibreOffice headless 변환
 │  │  └─ extract.py     # pdf-extract: pypdfium2 기반 텍스트·메타데이터 추출
 │  └─ structuring/      # 구조화 내부 구현
 │     ├─ __init__.py
